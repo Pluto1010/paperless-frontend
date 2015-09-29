@@ -5,6 +5,6 @@
     "ionic": "driftyco/ionic-bower#1.1.0"
   },
   "dependencies": {
-    "threejs": "r72"
+    "three.js": "mrdoob/three.js#r72"
   }
 }

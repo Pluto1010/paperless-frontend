@@ -1,8 +1,8 @@
 console.log('foo2');
-angular.module("tjsViewModule", [])
+angular.module("tjsViewModule", ['ionic'])
   .directive(
     "tjsview",
-    [function () {
+    ['$ionicGesture', function ($ionicGesture) {
       console.log('reg');
       return {
         restrict: "E",
@@ -10,31 +10,42 @@ angular.module("tjsViewModule", [])
           // assimpUrl: "=assimpUrl"
         },
         link: function (scope, elem, attr) {
+          var clock = new THREE.Clock();
           var camera, backgroundCamera;
           var scene, backgroundScene;
           var renderer;
           var previous;
           var backgroundTexture, backgroundMesh;
+          var SHADOW_MAP_WIDTH = 1024, SHADOW_MAP_HEIGHT = 1024;
+          var DEVICE_PIXEL_RATIO = window.devicePixelRatio || 1; // Evaluates to 2 if Retina
+          var controls;
+          var clockDelta;
+          var documentTimeLine = new THREE.Object3D();
+          var sceneIsDirty = false;
 
           // init scene
           init();
           animate();
 
-
           function initBackground() {
-            backgroundCamera = new THREE.PerspectiveCamera(50, window.innerWidth / (window.innerHeight - 44), 1, 1500);
-            backgroundCamera.position.set(0,0,50);
+            var aspect = getScreenAspect();
+            backgroundCamera = new THREE.PerspectiveCamera(50, aspect, 0.00001, 1500);
+            backgroundCamera.position.set(0, 0, 1 - (1 / aspect));
             backgroundCamera.lookAt(new THREE.Vector3(0, 0, 0));
 
             backgroundScene = new THREE.Scene();
-            backgroundTexture = THREE.ImageUtils.loadTexture( '../img/background.jpg', THREE.SphericalRefractionMapping);
+            backgroundTexture = THREE.ImageUtils.loadTexture(
+              '../img/background.jpg',
+              THREE.SphericalRefractionMapping
+            );
             backgroundTexture.minFilter = THREE.LinearFilter;
 
             backgroundMesh = new THREE.Mesh(
-                new THREE.PlaneGeometry(100, 100),
+                new THREE.PlaneGeometry(1, 1),
                 new THREE.MeshBasicMaterial({
                     map: backgroundTexture,
-                    side: THREE.DoubleSide
+                    side: THREE.DoubleSide//,
+                    //color:0x000000
                 }));
             backgroundMesh.position.x = 0;
             backgroundMesh.position.y = 0;
@@ -42,32 +53,42 @@ angular.module("tjsViewModule", [])
             backgroundMesh.material.depthTest = false;
             backgroundMesh.material.depthWrite = false;
 
-
             // Create your background scene
             backgroundScene.add(backgroundCamera);
             backgroundScene.add(backgroundMesh);
           }
 
-          function init() {
-            camera = new THREE.PerspectiveCamera(50, window.innerWidth / (window.innerHeight - 44), 1, 1500);
-            camera.position.set(0, 140, 400);
-            camera.lookAt(new THREE.Vector3(0, 60, 0));
+          function initRenderer() {
+            console.info('Device pixel ration: ' + window.devicePixelRatio);
+            // Renderer
+            renderer = new THREE.WebGLRenderer({
+              antialias: true,
+              devicePixelRatio: DEVICE_PIXEL_RATIO
+            });
+            renderer.setSize( getWindowWidth(), getWindowHeight());
+            renderer.autoClear = false;
+            renderer.shadowMap.enabled = true;
+            //renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.shadowMap.bias = 0.0025;
+            //renderer.shadowMap.debug = true;
+            renderer.shadowMap.width = SHADOW_MAP_WIDTH;
+            renderer.shadowMap.height = SHADOW_MAP_HEIGHT;
+          }
 
+          function initCamera() {
+            // Setup camera
+            camera = new THREE.PerspectiveCamera(50, getScreenAspect(), 196, 15000);
+            camera.position.set(0, 200, 60);
+            camera.rotateX(-1);
+            camera.setLens(11); // 11
+          }
+
+          function initMainScene() {
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x000000, 0.0015);
+            //scene.fog = new THREE.Fog(0x000088, 200, 1000);
+            scene.add( new THREE.AxisHelper( 1000 ) );
 
-            // Lights
-            scene.add(new THREE.AmbientLight(0x888888));
-            var directionalLight = new THREE.DirectionalLight(0xffffff);
-            directionalLight.position.x = 0;
-            directionalLight.position.y = 0;
-            directionalLight.position.z = 10000;
-            directionalLight.position.normalize();
-            scene.add(directionalLight);
-
-            // plane
-            var texture, material, plane;
-            texture = THREE.ImageUtils.loadTexture( "../img/UVTextureChecker2048.png" );
+            var texture = THREE.ImageUtils.loadTexture( "../img/2015_08_09_14_55_31.jpg" );
 
             // assuming you want the texture to repeat in both directions:
             texture.wrapS = THREE.RepeatWrapping;
@@ -77,56 +98,133 @@ angular.module("tjsViewModule", [])
             //   which is probably why your example wasn't working
             texture.repeat.set( 1, 1 );
 
-            material = new THREE.MeshLambertMaterial({ map : texture });
+            var planeMaterial = new THREE.MeshLambertMaterial({
+              map : texture,
+              //wireframe: true,
+              color:0xaaaaaa
+            });
 
-            for(i=0; i<10; i++) {
-              plane = new THREE.Mesh(new THREE.PlaneGeometry(210, 297), material);
-              plane.material.side = THREE.DoubleSide;
-              plane.position.x = 0;
-              plane.position.y = (15*i);
-              plane.position.z = (-100*i);
-              scene.add(plane);
+            var geometry = new THREE.CubeGeometry(210, 297, 0.01, 1, 1, 1);
+            var elementsOnMainWheel = 50;
+
+            pivotZ = 0;
+            for(var i=0; i < 20; i++) {
+              var documentPivot = new THREE.Object3D();
+              documentPivot.position.z = -i * 50;
+              //documentPivot.position.y = -20 + i * 20;
+              //pivotZ += 2 * Math.PI / elementsOnMainWheel;
+
+              var documentPlane = new THREE.Mesh(geometry, planeMaterial.clone());
+              documentPlane.material.side = THREE.FrontSide;
+              // documentPlane.position.x = -30 *i;// 0;
+              // documentPlane.position.y = (30*i);
+              // documentPlane.position.z = -(100*i);
+              //documentPlane.position.z = i * (-180 / elementsOnMainWheel);
+              documentPlane.castShadow = true;
+              //documentPlane.receiveShadow = true;
+              documentPlane.material.transparent = true;
+              //documentPlane.material.opacity = 1 / Math.pow(1.4, i);
+              documentPlane.rotateX(-1);
+              documentPivot.add(documentPlane);
+
+              //documentPlane.position.y = -2000;
+              documentTimeLine.add(documentPivot);
             }
+            scene.add(documentTimeLine);
+          }
 
+          function initCameraControls() {
+            // Camera controls
+            controls = new THREE.DocumentControl( documentTimeLine, renderer.domElement, $ionicGesture );
+          }
+
+          function initLights() {
+            // Lights
+            scene.add(new THREE.AmbientLight(0x000000));
+
+            var light = new THREE.DirectionalLight( 0xffffff, 1.5);
+            light.position.set( 0, 1000, 1000 );
+
+            light.castShadow = true;
+            //light.target = documentTimeLine;
+
+            // light.shadowCameraLeft = -120; // or whatever value works for the scale of your scene
+            // light.shadowCameraRight = 120;
+            // light.shadowCameraTop = 200;
+            // light.shadowCameraBottom = -200;
+
+            light.shadowCameraNear = 1;
+            light.shadowCameraFar = 4000;
+            light.shadowCameraVisible = true;
+            light.shadowDarkness = 0.5;
+
+            scene.add(light);
+            scene.add( new THREE.DirectionalLightHelper(light, 0.2) );
+          }
+
+          function init() {
+            initRenderer();
             initBackground();
+            initCamera();
+            initMainScene();
+            initLights();
 
-            // Renderer
-            renderer = new THREE.WebGLRenderer();
-            renderer.setSize(window.innerWidth, window.innerHeight - 44);
+            // Append renderer
             elem[0].appendChild(renderer.domElement);
+
+            initCameraControls();
 
             // Events
             window.addEventListener('resize', onWindowResize, false);
+            //window.addEventListener('orientationchange', onWindowResize, false);
+            window.addEventListener('touchmove', function(e) {
+              e.preventDefault();
+            });
           }
 
-          //
+          function getWindowHeight() {
+            return window.innerHeight - 44;
+          }
+
+          function getWindowWidth() {
+            return window.innerWidth;
+          }
+
+          function getScreenAspect() {
+            return getWindowWidth() / getWindowHeight();
+          }
+
           function onWindowResize(event) {
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            camera.aspect = window.innerWidth / window.innerHeight;
+            renderer.setSize(getWindowWidth(), getWindowHeight());
+            camera.aspect = getScreenAspect();
             camera.updateProjectionMatrix();
 
             backgroundCamera.aspect = camera.aspect;
             backgroundCamera.updateProjectionMatrix();
           }
 
-          //
-          var t = 0;
-
           function animate() {
             requestAnimationFrame(animate);
-            render();
+            updateWorld();
+
+            if(sceneIsDirty == true) {
+              render();
+              sceneIsDirty = false;
+            }
           }
 
-          //
+          function updateCameraControls() {
+            controls.update( );
+          }
+
+          function updateWorld() {
+            clockDelta = clock.getDelta();
+            updateCameraControls();
+            sceneIsDirty = true;
+            //documentTimeLine.rotation.x -= clockDelta*Math.PI/12;
+          }
+
           function render() {
-            /*
-            var timer = Date.now() * 0.0005;
-            camera.position.x = Math.cos(timer) * 10;
-            camera.position.y = 4;
-            camera.position.z = Math.sin(timer) * 10;
-            camera.lookAt(scene.position);
-            */
-            renderer.autoClear = false;
             renderer.clear();
             renderer.render(backgroundScene, backgroundCamera);
             renderer.render(scene, camera);
