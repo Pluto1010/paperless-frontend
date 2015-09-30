@@ -27,6 +27,11 @@ angular.module("tjsViewModule", ['ionic'])
           init();
           animate();
 
+          function forceRendering() {
+            sceneIsDirty = true;
+            requestAnimationFrame(animate);
+          }
+
           function initBackground() {
             var aspect = getScreenAspect();
             backgroundCamera = new THREE.PerspectiveCamera(50, aspect, 0.00001, 1500);
@@ -36,7 +41,8 @@ angular.module("tjsViewModule", ['ionic'])
             backgroundScene = new THREE.Scene();
             backgroundTexture = THREE.ImageUtils.loadTexture(
               '../img/background.jpg',
-              THREE.SphericalRefractionMapping
+              THREE.SphericalRefractionMapping,
+              forceRendering
             );
             backgroundTexture.minFilter = THREE.LinearFilter;
 
@@ -88,7 +94,7 @@ angular.module("tjsViewModule", ['ionic'])
             //scene.fog = new THREE.Fog(0x000088, 200, 1000);
             scene.add( new THREE.AxisHelper( 1000 ) );
 
-            var texture = THREE.ImageUtils.loadTexture( "../img/2015_08_09_14_55_31.jpg" );
+            var texture = THREE.ImageUtils.loadTexture( "../img/2015_08_09_14_55_31.jpg", undefined, forceRendering);
 
             // assuming you want the texture to repeat in both directions:
             texture.wrapS = THREE.RepeatWrapping;
@@ -174,6 +180,9 @@ angular.module("tjsViewModule", ['ionic'])
 
             initCameraControls();
 
+            // initial rendering
+            sceneIsDirty = true;
+
             // Events
             window.addEventListener('resize', onWindowResize, false);
             //window.addEventListener('orientationchange', onWindowResize, false);
@@ -201,6 +210,16 @@ angular.module("tjsViewModule", ['ionic'])
 
             backgroundCamera.aspect = camera.aspect;
             backgroundCamera.updateProjectionMatrix();
+            forceRendering();
+          }
+
+          function updateCameraControls() {
+            return controls.update( );
+          }
+
+          function updateWorld() {
+            clockDelta = clock.getDelta();
+            sceneIsDirty |= updateCameraControls();
           }
 
           function animate() {
@@ -211,17 +230,6 @@ angular.module("tjsViewModule", ['ionic'])
               render();
               sceneIsDirty = false;
             }
-          }
-
-          function updateCameraControls() {
-            controls.update( );
-          }
-
-          function updateWorld() {
-            clockDelta = clock.getDelta();
-            updateCameraControls();
-            sceneIsDirty = true;
-            //documentTimeLine.rotation.x -= clockDelta*Math.PI/12;
           }
 
           function render() {

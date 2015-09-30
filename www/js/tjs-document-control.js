@@ -50,11 +50,19 @@ THREE.DocumentControl = function ( object, domElement, $ionicGesture ) {
   };
 
   this.update = function() {
-    if ( scope.enabled === false ) return;
+    var needRendering = false;
 
-    if(!scope.dragOnGoing) {
+    if(scope.enabled === false) return false;
+
+    if(scope.orientation.yPower != 0) {
+      // we need a new image after this round
+      needRendering = true;
+
+      // reduce speed each round
       scope.orientation.yPower *= 0.98;
-      if(Math.abs(scope.orientation.yPower) <= 0.0625) {
+
+      // bring it to stop after it falls below a certain amount of power.
+      if(Math.abs(scope.orientation.yPower) <= 0.03125) {
         scope.orientation.yPower = 0;
       }
     }
@@ -69,7 +77,7 @@ THREE.DocumentControl = function ( object, domElement, $ionicGesture ) {
     //mouseQuat.y.setFromAxisAngle( yVector, this.orientation.y );
     // mouseQuat.y.setFromAxisAngle( yVector, this.orientation.y );
     //object.position.y = mouseQuat.y
-    return;
+    return needRendering;
   };
 
 
