@@ -1,0 +1,19 @@
+{
+  "documents": [
+    {
+      "id": 1,
+      "preview": "data/preview/Rechnung-Muster-1.jpg",
+      "created_on": "2015-01-01T01:23:45Z"
+    },
+    {
+      "id": 2,
+      "preview": "data/preview/Rechnung-Muster-2.jpg",
+      "created_on": "2015-01-02T01:23:45Z"
+    },
+    {
+      "id": 3,
+      "preview": "data/preview/dc_grafiktest.jpg",
+      "created_on": "2015-01-03T01:23:45Z"
+    }
+  ]
+}

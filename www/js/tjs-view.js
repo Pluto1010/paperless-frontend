@@ -94,7 +94,7 @@ angular.module("tjsViewModule", ['ionic'])
             //scene.fog = new THREE.Fog(0x000088, 200, 1000);
             scene.add( new THREE.AxisHelper( 1000 ) );
 
-            var texture = THREE.ImageUtils.loadTexture( "../img/2015_08_09_14_55_31.jpg", undefined, forceRendering);
+            var texture = THREE.ImageUtils.loadTexture( "../data/preview/Rechnung-Muster-1.jpg", undefined, forceRendering);
 
             // assuming you want the texture to repeat in both directions:
             texture.wrapS = THREE.RepeatWrapping;
