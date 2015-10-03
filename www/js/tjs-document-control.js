@@ -42,6 +42,20 @@ THREE.DocumentControl = function ( object, domElement, $ionicGesture ) {
   scope.orientation = {
     yPower: 0
   };
+  scope.forceRendering = false;
+
+  var onTap = function( event ) {
+    if ( scope.enabled === false ) return;
+
+    console.log("Tap detected", event);
+
+    scope.dragOnGoing = false;
+    scope.orientation.yPower = 0;
+    scope.forceRendering = true;
+
+    event.stopPropagation();
+    return true;
+  }
 
   this.update = function() {
     var needRendering = false;
@@ -60,13 +74,17 @@ THREE.DocumentControl = function ( object, domElement, $ionicGesture ) {
         scope.orientation.yPower = 0;
       }
     }
+    if(scope.forceRendering) {
+      needRendering = true;
+      scope.forceRendering = false;
+    }
 
     var old = object.position.z;
     object.translateZ(scope.orientation.yPower);
 
-    if(object.position.z != old) {
-      console.log("Updating object.position.z to " + object.position.z + " with a dY=" + scope.orientation.yPower);
-    }
+    // if(object.position.z != old) {
+    //   console.log("Updating object.position.z to " + object.position.z + " with a dY=" + scope.orientation.yPower);
+    // }
 
     //mouseQuat.y.setFromAxisAngle( yVector, this.orientation.y );
     // mouseQuat.y.setFromAxisAngle( yVector, this.orientation.y );
@@ -75,14 +93,16 @@ THREE.DocumentControl = function ( object, domElement, $ionicGesture ) {
   };
 
 
-  var dragDownGesture;
+  var dragDownGesture, dragUpGesture, dragEndGesture, tapGesture;
   scope.dispose = function() {
     $ionicGesture.off(dragDownGesture, 'dragdown', onDragUpDown);
     $ionicGesture.off(dragUpGesture, 'dragup', onDragUpDown);
     $ionicGesture.off(dragEndGesture, 'dragend', onDragEnd);
+    $ionicGesture.off(tapGesture, 'tap', onTap);
   }
 
   dragDownGesture = $ionicGesture.on('dragdown', onDragUpDown, [domElement], {});
   dragUpGesture = $ionicGesture.on('dragup', onDragUpDown, [domElement], {});
   dragEndGesture = $ionicGesture.on('dragend', onDragEnd, [domElement], {});
+  tapGesture = $ionicGesture.on('tap', onTap, [domElement], {});
 };
