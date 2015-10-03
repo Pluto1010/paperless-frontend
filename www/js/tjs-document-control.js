@@ -17,16 +17,13 @@ THREE.DocumentControl = function ( object, domElement, $ionicGesture ) {
   var onDragUpDown = function ( event ) {
     if ( scope.enabled === false ) return;
 
-    console.log("dragUpDown detected", event);
-    console.log("dragUpDown:event", Object.keys(event));
-
     var deltaYNegative = event.gesture.deltaY < 0;
     var deltaY = Math.pow(Math.abs(event.gesture.deltaY), 1.15);
     if(deltaYNegative) {
       deltaY *= -1;
     }
 
-    scope.orientation.yPower = deltaY * 0.04;
+    scope.orientation.yPower = deltaY * 0.01;
     scope.dragOnGoing = true;
     event.stopPropagation();
     return true;
@@ -34,9 +31,6 @@ THREE.DocumentControl = function ( object, domElement, $ionicGesture ) {
 
   var onDragEnd = function ( event ) {
     if ( scope.enabled === false ) return;
-
-    console.log("dragEnd detected", event);
-    console.log("dragEnd:event", Object.keys(event));
 
     scope.dragOnGoing = false;
 
