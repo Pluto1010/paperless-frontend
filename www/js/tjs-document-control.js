@@ -82,6 +82,10 @@ THREE.DocumentControl = function ( object, domElement, $ionicGesture ) {
     var old = object.position.z;
     object.translateZ(scope.orientation.yPower);
 
+    if(object.position.z < 0) {
+      object.position.z = 0;
+    }
+
     // if(object.position.z != old) {
     //   console.log("Updating object.position.z to " + object.position.z + " with a dY=" + scope.orientation.yPower);
     // }
