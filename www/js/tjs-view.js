@@ -22,6 +22,8 @@ angular.module("tjsViewModule", ['ionic'])
           var clockDelta;
           var documentTimeLine = new THREE.Object3D();
           var sceneIsDirty = false;
+          var composer;
+          var FXAAShader;
 
           // init scene
           init();
@@ -71,6 +73,7 @@ angular.module("tjsViewModule", ['ionic'])
               antialias: true,
               devicePixelRatio: DEVICE_PIXEL_RATIO
             });
+            renderer.setPixelRatio(DEVICE_PIXEL_RATIO);
             renderer.setSize( getWindowWidth(), getWindowHeight());
             renderer.autoClear = false;
             renderer.shadowMap.enabled = true;
@@ -94,7 +97,10 @@ angular.module("tjsViewModule", ['ionic'])
             //scene.fog = new THREE.Fog(0x000088, 200, 1000);
             scene.add( new THREE.AxisHelper( 1000 ) );
 
-            var texture = THREE.ImageUtils.loadTexture( "data/preview/Rechnung-Muster-1.jpg", undefined, forceRendering);
+            var texture = THREE.ImageUtils.loadTexture( "data/preview/Rechnung-Muster-1-2048.jpg", undefined, forceRendering);
+            texture.anisothropy = 4;
+            texture.magFilter = THREE.NearestFilter;
+            texture.minFilter = THREE.LinearMipMapLinearFilter;
 
             // assuming you want the texture to repeat in both directions:
             texture.wrapS = THREE.RepeatWrapping;
@@ -110,7 +116,7 @@ angular.module("tjsViewModule", ['ionic'])
               color:0xaaaaaa
             });
 
-            var geometry = new THREE.CubeGeometry(210, 297, 0.01, 1, 1, 1);
+            var geometry = new THREE.CubeGeometry(297, 297, 0.01, 1, 1, 1);
             var elementsOnMainWheel = 50;
 
             pivotZ = 0;
@@ -168,12 +174,35 @@ angular.module("tjsViewModule", ['ionic'])
             scene.add( new THREE.DirectionalLightHelper(light, 0.2) );
           }
 
+          function initEffectComposer() {
+            composer = new THREE.EffectComposer(renderer);
+            composer.setSize(window.innerWidth, window.innerHeight);
+
+            backgroundPass = new THREE.RenderPass(backgroundScene, backgroundCamera);
+            backgroundPass.clear = true;
+            composer.addPass(backgroundPass);
+
+            foregroundPass = new THREE.RenderPass(scene, camera);
+            foregroundPass.clear = false;
+            composer.addPass(foregroundPass);
+
+            FXAAShader = new THREE.ShaderPass(THREE.FXAAShader);
+            FXAAShader.enabled = false;
+            FXAAShader.uniforms.resolution.value = new THREE.Vector2(1 / window.innerWidth, 1 / window.innerHeight);
+            composer.addPass(FXAAShader);
+
+            var effectCopy = new THREE.ShaderPass(THREE.CopyShader);
+            effectCopy.renderToScreen = true;
+            composer.addPass(effectCopy);
+          }
+
           function init() {
             initRenderer();
             initBackground();
             initCamera();
             initMainScene();
             initLights();
+            initEffectComposer();
 
             // Append renderer
             elem[0].appendChild(renderer.domElement);
@@ -204,9 +233,11 @@ angular.module("tjsViewModule", ['ionic'])
           }
 
           function onWindowResize(event) {
-            renderer.setSize(getWindowWidth(), getWindowHeight());
             camera.aspect = getScreenAspect();
             camera.updateProjectionMatrix();
+
+            FXAAShader.uniforms['resolution'].value.set(1 / (window.innerWidth * DEVICE_PIXEL_RATIO), 1 / (window.innerHeight * DEVICE_PIXEL_RATIO));
+            composer.setSize(window.innerWidth , window.innerHeight);
 
             backgroundCamera.aspect = camera.aspect;
             backgroundCamera.updateProjectionMatrix();
@@ -233,9 +264,7 @@ angular.module("tjsViewModule", ['ionic'])
           }
 
           function render() {
-            renderer.clear();
-            renderer.render(backgroundScene, backgroundCamera);
-            renderer.render(scene, camera);
+            composer.render();
           }
         }
       }
